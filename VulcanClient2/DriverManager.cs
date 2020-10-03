@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
 using System.Threading.Tasks;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
+
 
 namespace VulcanClient2
 {
@@ -14,61 +10,10 @@ namespace VulcanClient2
     {
         string Filename { get; set; }
         string ZipFileName { get; set; }
-        void DownloadDriver(){}
+        Task DownloadDriver();
         IWebDriver GetDriver();
     }
-
-    public class ChromeDriver : IDriver
-    {
-        public string BrowserVersion { get; set; }
-        public string Filename { get; set; }
-        public string ZipFileName { get; set; }
-        public ChromeDriver(string browserVersion)
-        {
-            BrowserVersion = browserVersion;
-        }
-
-        public async void DownloadDriver()
-        {
-            string chromeVersion = BrowserVersion.Substring(0, 2);
-            Console.WriteLine(chromeVersion);
-            using (HttpClient client = new HttpClient())
-            {
-                using (HttpResponseMessage lastestVersionResponse =
-                    await client.GetAsync($"http://chromedriver.storage.googleapis.com/LATEST_RELEASE_{chromeVersion}"))
-                {
-                    lastestVersionResponse.EnsureSuccessStatusCode();
-                    string latestVersionResponseBody = await lastestVersionResponse.Content.ReadAsStringAsync();
-                    string url = $"http://chromedriver.storage.googleapis.com/{latestVersionResponseBody}/{ZipFileName}";
-                    using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
-                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                    {
-                        string currentDirectory = Directory.GetCurrentDirectory();
-                        string filePath = $"{currentDirectory}/{ZipFileName}";
-                        using (Stream streamToWriteTo = File.Open(filePath, FileMode.Create))
-                        {
-                            await streamToReadFrom.CopyToAsync(streamToWriteTo);
-                        }
-                        await Task.Run(() => ZipFile.ExtractToDirectory(filePath, $"{currentDirectory}/drivers/"));
-                        await Task.Run(() => File.Delete(filePath));
-                    }    
-                }
-            }
-        }
-
-        public IWebDriver GetDriver()
-        {
-            var currentDirectory = Directory.GetCurrentDirectory();
-            var options = new ChromeOptions();
-            options.AddArgument("no-sandbox");
-            using (var service = ChromeDriverService.CreateDefaultService($"{currentDirectory}\\drivers\\"))
-            {
-                var driver = new OpenQA.Selenium.Chrome.ChromeDriver(service, options, TimeSpan.FromMinutes(3));
-                return driver;
-            }
-        }
-    }
-
+    
     public class DriverManager
     {
         public IDriver SelectedDriver;
@@ -77,7 +22,8 @@ namespace VulcanClient2
             List<IDriver> drivers = new List<IDriver>();
             
             ApplicationFinder appFinder = new ApplicationFinder();
-            string chromeVersion = appFinder.getApplicationVersion("Google Chrome");
+            string chromeVersion = appFinder.GetApplicationVersion("Google Chrome");
+            
             if (chromeVersion != "")
             {
                 ChromeDriver chromeDriver = new ChromeDriver(chromeVersion);
@@ -86,9 +32,17 @@ namespace VulcanClient2
                 drivers.Add(chromeDriver);
             }
             
-            if (drivers.Count > 0) SelectedDriver = drivers[0];
-            
+            string operaVersion = appFinder.GetApplicationVersionRegex(@"^Opera Stable [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$");
 
+            if (operaVersion != "")
+            {
+                OperaDriver operaDriver = new OperaDriver(operaVersion);
+                operaDriver.ZipFileName = "operadriver_win64.zip";
+                operaDriver.Filename = "operadriver_win64\\operadriver.exe";
+                drivers.Add(operaDriver);
+            }
+
+            if (drivers.Count > 0) SelectedDriver = drivers[1];
         }
     }
 }
