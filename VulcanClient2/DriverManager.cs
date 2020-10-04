@@ -13,7 +13,7 @@ namespace VulcanClient2
         Task DownloadDriver();
         IWebDriver GetDriver();
     }
-    
+
     public class DriverManager
     {
         public IDriver SelectedDriver;
@@ -42,7 +42,16 @@ namespace VulcanClient2
                 drivers.Add(operaDriver);
             }
 
-            if (drivers.Count > 0) SelectedDriver = drivers[1];
+            string edgeVersion = appFinder.GetApplicationVersion("Microsoft Edge");
+            if (edgeVersion != "")
+            {
+                EdgeDriver edgeDriver = new EdgeDriver(edgeVersion);
+                edgeDriver.ZipFileName = "edgedriver_win64.zip";
+                edgeDriver.Filename = "msedgedriver.exe";
+                drivers.Add(edgeDriver);
+            }
+
+            if (drivers.Count > 0) SelectedDriver = drivers[2];
         }
     }
 }
