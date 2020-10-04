@@ -6,10 +6,20 @@ using SocketIOClient;
 using System.Threading.Tasks;
 using System.Drawing.Imaging;
 using OpenQA.Selenium;
-using Octokit;
+using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
+using System.ComponentModel;
 
 namespace VulcanClient2
 {
+    class ProcessDict
+    {
+        public string Name { get; set; }
+        public int Id { get; set; }
+        
+        public string MainWindowTitle { get; set; }
+    }
     class Program
     {
         static void RunWebDriver(DriverManager driverManager, Uri url)
@@ -28,7 +38,7 @@ namespace VulcanClient2
         {
             Console.WriteLine("Vulcan Client");
             Console.OutputEncoding = Encoding.UTF8;
-
+            
             var uri = new Uri("http://localhost:3000/clients");
             var socket = new SocketIO(uri);
 
@@ -113,7 +123,70 @@ namespace VulcanClient2
                 });
             });
             
+            socket.On("process_list", async response =>
+            {
+                List<ProcessDict> processList = new List<ProcessDict>();
+
+                foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
+                {
+                    processList.Add(new ProcessDict {Name = process.ProcessName, Id = process.Id, MainWindowTitle = process.MainWindowTitle});
+                }
+                
+                await socket.EmitAsync("process_list", new
+                {
+                    processes = processList
+                });
+            });
+            
+            socket.On("process_kill", async response =>
+            {
+                int processId = response.GetValue(0).Value<int>("processId");
+                foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
+                {
+                    if (process.Id == processId)
+                    {
+                        process.Kill();
+                    }
+                }
+            });
+            
+            socket.On("process_start", async response =>
+            {
+                string processName = response.GetValue(0).Value<string>("processName");
+                var process = new Process();
+                process.StartInfo.FileName = processName;
+                try
+                {
+                    process.Start();
+                    await socket.EmitAsync("notification", new
+                    {
+                        notification = new
+                        {
+                            message = $"Pomyslnie uruchomino {processName}",
+                            pos = "bottom-right",
+                            status = "success"
+                        }
+                    });
+                }
+                catch (Win32Exception e)
+                {
+                    Console.WriteLine(e.Message);
+
+                    await socket.EmitAsync("notification", new
+                    {
+                        notification = new
+                        {
+                            message = e.Message + $" {processName}",
+                            pos = "bottom-right",
+                            status = "danger"
+                        }
+                    });
+                }
+                
+            });
+            
             await socket.ConnectAsync();
+
             Console.ReadLine();
         }
 

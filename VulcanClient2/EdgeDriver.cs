@@ -22,22 +22,31 @@ namespace VulcanClient2
                 Uri uri = new Uri($"https://msedgedriver.azureedge.net/LATEST_RELEASE_{edgeVersion}_WINDOWS");
                 using (HttpResponseMessage lastestVersionResponse =
                     await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead))
-                using (Stream latestVersionStream = await lastestVersionResponse.Content.ReadAsStreamAsync())
                 {
-                    using (StreamReader sr = new StreamReader(latestVersionStream))
+                    lastestVersionResponse.EnsureSuccessStatusCode();
+                    using (Stream latestVersionStream = await lastestVersionResponse.Content.ReadAsStreamAsync())
                     {
-                        string latestDriverVersion = sr.ReadToEnd();
-                        latestDriverVersion = String.Concat(latestDriverVersion.Where(c => !Char.IsWhiteSpace(c)));
-                        Console.WriteLine($"Ostatnia wersja drivera {latestDriverVersion}");
-                        Console.WriteLine("Pobieramy drivera");
-                        Uri driverUri = new Uri($"https://msedgedriver.azureedge.net/{latestDriverVersion}/{ZipFileName}");
-                        using (HttpResponseMessage response = await client.GetAsync(driverUri, HttpCompletionOption.ResponseHeadersRead))
-                        using (Stream driverStream = await response.Content.ReadAsStreamAsync())
+                        using (StreamReader sr = new StreamReader(latestVersionStream))
                         {
-                            using (Stream driverStreamWrite = File.Open(ZipPath, FileMode.Create))
+                            string latestDriverVersion = sr.ReadToEnd();
+                            latestDriverVersion = String.Concat(latestDriverVersion.Where(c => !Char.IsWhiteSpace(c)));
+                            Console.WriteLine($"Ostatnia wersja drivera {latestDriverVersion}");
+                            Console.WriteLine("Pobieramy drivera");
+                            Uri driverUri =
+                                new Uri($"https://msedgedriver.azureedge.net/{latestDriverVersion}/{ZipFileName}");
+                            using (HttpResponseMessage response =
+                                await client.GetAsync(driverUri, HttpCompletionOption.ResponseHeadersRead))
                             {
-                                await driverStream.CopyToAsync(driverStreamWrite);
+                                response.EnsureSuccessStatusCode();
+                                using (Stream driverStream = await response.Content.ReadAsStreamAsync())
+                                {
+                                    using (Stream driverStreamWrite = File.Open(ZipPath, FileMode.Create))
+                                    {
+                                        await driverStream.CopyToAsync(driverStreamWrite);
+                                    }
+                                }
                             }
+                            
                         }
                     }
                 }

@@ -42,7 +42,7 @@ namespace VulcanClient2
         {
             Console.WriteLine("Rozpakowujemy drivera");
             ZipFile.ExtractToDirectory(ZipPath, DriversPath);
-            Console.WriteLine("Driver rozpakowany");Console.WriteLine("Driver rozpakowany");
+            Console.WriteLine("Driver rozpakowany");
         }
 
         public void Delete()
@@ -95,7 +95,7 @@ namespace VulcanClient2
                 drivers.Add(edgeDriver);
             }
 
-            if (drivers.Count > 0) SelectedDriver = drivers[0];
+            if (drivers.Count > 0) SelectedDriver = drivers[2];
         }
     }
 }
