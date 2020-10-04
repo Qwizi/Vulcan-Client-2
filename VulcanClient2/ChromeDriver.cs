@@ -1,28 +1,20 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.IO.Compression;
 using System.IO;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
 
 namespace VulcanClient2
 {
-    public class ChromeDriver : IDriver
+    public class ChromeDriver : Driver
     {
-        public string BrowserVersion { get; set; }
-        public string Filename { get; set; }
-        public string ZipFileName { get; set; }
-        public ChromeDriver(string browserVersion)
-        {
-            BrowserVersion = browserVersion;
-        }
+        
+        public ChromeDriver(string browserVersion, string zipFileName, string filename) : base(browserVersion, zipFileName, filename){}
 
-        public async Task DownloadDriver()
+        public override async Task DownloadZip()
         {
             string chromeVersion = BrowserVersion.Substring(0, 2);
-            Console.WriteLine(chromeVersion);
-            Console.WriteLine("Poberamy driver");
             using (HttpClient client = new HttpClient())
             {
                 using (HttpResponseMessage lastestVersionResponse =
@@ -34,37 +26,19 @@ namespace VulcanClient2
                     using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                     using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
                     {
-                        string currentDirectory = Directory.GetCurrentDirectory();
-                        string filePath = $"{currentDirectory}/{ZipFileName}";
-                        using (Stream streamToWriteTo = File.Open(filePath, FileMode.Create))
+                        using (Stream streamToWriteTo = File.Open(ZipPath, FileMode.Create))
                         {
                             await streamToReadFrom.CopyToAsync(streamToWriteTo);
-                            Console.WriteLine("Driver pobrany");
                         }
-
-                        Console.WriteLine("Rozpakowujemy drivera");
-                        await Task.Run(() =>
-                        {
-                            ZipFile.ExtractToDirectory(filePath, $"{currentDirectory}/drivers/");
-                            Console.WriteLine("Driver rozpakowany");
-                        });
-                        Console.WriteLine("Usuwamy zipa");
-                        await Task.Run(() =>
-                        {
-                            File.Delete(filePath);
-                            Console.WriteLine("Zip usuniety");
-                        });
                     }    
                 }
             }
         }
 
-        public IWebDriver GetDriver()
+        public override IWebDriver GetDriver()
         {
-            var currentDirectory = Directory.GetCurrentDirectory();
             var options = new ChromeOptions();
-            //options.AddArgument("no-sandbox");
-            var service = ChromeDriverService.CreateDefaultService($"{currentDirectory}\\drivers\\");
+            var service = ChromeDriverService.CreateDefaultService(DriversPath);
             return new OpenQA.Selenium.Chrome.ChromeDriver(service, options, TimeSpan.FromMinutes(3));
             
         }

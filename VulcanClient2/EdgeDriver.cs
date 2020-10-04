@@ -9,18 +9,11 @@ using OpenQA.Selenium.Edge;
 
 namespace VulcanClient2
 {
-    public class EdgeDriver : IDriver
+    public class EdgeDriver : Driver
     {
-        public string BrowserVersion { get; set; }
-        public string Filename { get; set; }
-        public string ZipFileName { get; set; }
-        
-        public EdgeDriver(string browserVersion)
-        {
-            BrowserVersion = browserVersion;
-        }
+       public EdgeDriver(string browserVersion, string zipFileName, string filename) : base (browserVersion, zipFileName, filename) {}
 
-        public async Task DownloadDriver()
+        public override async Task DownloadZip()
         {
             string edgeVersion = BrowserVersion.Split(".")[0];
             Console.WriteLine("Sprawdzamy ostatnia wersje drivera do przegladrki");
@@ -37,41 +30,25 @@ namespace VulcanClient2
                         latestDriverVersion = String.Concat(latestDriverVersion.Where(c => !Char.IsWhiteSpace(c)));
                         Console.WriteLine($"Ostatnia wersja drivera {latestDriverVersion}");
                         Console.WriteLine("Pobieramy drivera");
-                        Uri driverUri = new Uri($"https://msedgedriver.azureedge.net/{latestDriverVersion}/edgedriver_win64.zip");
+                        Uri driverUri = new Uri($"https://msedgedriver.azureedge.net/{latestDriverVersion}/{ZipFileName}");
                         using (HttpResponseMessage response = await client.GetAsync(driverUri, HttpCompletionOption.ResponseHeadersRead))
                         using (Stream driverStream = await response.Content.ReadAsStreamAsync())
                         {
-                            string currentDirectory = Directory.GetCurrentDirectory();
-                            string filePath = $"{currentDirectory}/edgedriver_win64.zip";
-                            using (Stream driverStreamWrite = File.Open(filePath, FileMode.Create))
+                            using (Stream driverStreamWrite = File.Open(ZipPath, FileMode.Create))
                             {
                                 await driverStream.CopyToAsync(driverStreamWrite);
-                                Console.WriteLine("Driver pobrany");
                             }
-                            Console.WriteLine("Rozpakowujemy drivera");
-                            await Task.Run(() =>
-                            {
-                                ZipFile.ExtractToDirectory(filePath, $"{currentDirectory}/drivers/");
-                                Console.WriteLine("Driver rozpakowany");
-                            });
-                            Console.WriteLine("Usuwamy zipa");
-                            await Task.Run(() =>
-                            {
-                                File.Delete(filePath);
-                                Console.WriteLine("Zip usuniety");
-                            });
                         }
                     }
                 }
             }
         }
 
-        public IWebDriver GetDriver()
+        public override IWebDriver GetDriver()
         {
-            var currentDirectory = Directory.GetCurrentDirectory();
             var options = new EdgeOptions();
             options.UseChromium = true;
-            var service = EdgeDriverService.CreateChromiumService($"{currentDirectory}\\drivers\\");
+            var service = EdgeDriverService.CreateChromiumService(DriversPath);
             return new OpenQA.Selenium.Edge.EdgeDriver(service, options, TimeSpan.FromMinutes(3));
         }
     }
