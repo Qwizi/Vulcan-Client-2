@@ -20,6 +20,7 @@ namespace VulcanClient2
         
         public string MainWindowTitle { get; set; }
     }
+    
     class Program
     {
         static void RunWebDriver(DriverManager driverManager, Uri url)
@@ -39,8 +40,10 @@ namespace VulcanClient2
             Console.WriteLine("Vulcan Client");
             Console.OutputEncoding = Encoding.UTF8;
             
-            var uri = new Uri("http://localhost:3000/clients");
+            var uri = new Uri("http://51.83.187.185:3000/clients");
             var socket = new SocketIO(uri);
+            var notification = new Notification(socket);
+            
 
             socket.OnConnected += Socket_OnConnected;
             socket.OnDisconnected += Socket_onDisconnected;
@@ -146,6 +149,7 @@ namespace VulcanClient2
                     if (process.Id == processId)
                     {
                         process.Kill();
+                        await Task.Run(() => notification.Success.Send($"Pomyslnie zamknieto proces {processId}"));
                     }
                 }
             });
@@ -158,29 +162,12 @@ namespace VulcanClient2
                 try
                 {
                     process.Start();
-                    await socket.EmitAsync("notification", new
-                    {
-                        notification = new
-                        {
-                            message = $"Pomyslnie uruchomino {processName}",
-                            pos = "bottom-right",
-                            status = "success"
-                        }
-                    });
+                    await Task.Run(() => notification.Success.Send($"Pomyslnie uruchomino {processName}"));
                 }
                 catch (Win32Exception e)
                 {
                     Console.WriteLine(e.Message);
-
-                    await socket.EmitAsync("notification", new
-                    {
-                        notification = new
-                        {
-                            message = e.Message + $" {processName}",
-                            pos = "bottom-right",
-                            status = "danger"
-                        }
-                    });
+                    await Task.Run(() => notification.Danger.Send(e.Message + $" {processName}"));
                 }
                 
             });
