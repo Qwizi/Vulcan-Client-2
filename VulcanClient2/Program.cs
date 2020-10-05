@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
+using Microsoft.Extensions.Configuration;
 
 namespace VulcanClient2
 {
@@ -39,8 +40,14 @@ namespace VulcanClient2
         {
             Console.WriteLine("Vulcan Client");
             Console.OutputEncoding = Encoding.UTF8;
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("config.json");
             
-            var uri = new Uri("http://51.83.187.185:3000/clients");
+            var config = builder.Build();
+            var adress = config.GetSection("adress").Value;
+            
+            var uri = new Uri(adress);
             var socket = new SocketIO(uri);
             var notification = new Notification(socket);
             
