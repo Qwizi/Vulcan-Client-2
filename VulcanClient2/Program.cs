@@ -38,16 +38,16 @@ namespace VulcanClient2
         }
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Vulcan Client");
+            Console.WriteLine("Vulcan Client v.1.0.2");
             Console.OutputEncoding = Encoding.UTF8;
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("config.json");
             
             var config = builder.Build();
-            var adress = config.GetSection("adress").Value;
-            
-            var uri = new Uri(adress);
+            var adress = config.GetSection("Adress").Value;
+            Console.WriteLine(adress);
+            var uri = new Uri(adress+"clients");
             var socket = new SocketIO(uri);
             var notification = new Notification(socket);
             
