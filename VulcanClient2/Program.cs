@@ -24,6 +24,8 @@ namespace VulcanClient2
     class Program
     {
         public static IWebDriver WebDriver {get; set;}
+        public static Uri SocketUri {get; set;}
+        public static Uri WebsiteUri { get; set; }
         static void RunWebDriver(DriverManager driverManager, Uri url)
         {
             try
@@ -36,6 +38,7 @@ namespace VulcanClient2
                 Console.WriteLine(e);
             }
         }
+        
         static async Task Main(string[] args)
         {
             Console.WriteLine("Vulcan Client v.1.0.2");
@@ -47,13 +50,14 @@ namespace VulcanClient2
             var config = builder.Build();
             var adress = config.GetSection("Adress").Value;
 
-            var uri = new Uri(adress+"clients");
-            var socket = new SocketIO(uri);
+            SocketUri = new Uri(adress+"clients");
+            var socket = new SocketIO(SocketUri);
             var notification = new Notification(socket);
             
 
             socket.OnConnected += Socket_OnConnected;
             socket.OnDisconnected += Socket_onDisconnected;
+            
 
             socket.On("website", async response =>
             {
@@ -63,7 +67,7 @@ namespace VulcanClient2
                 bool urlIsOk = false; ;
                 try
                 {
-                    Uri uri = new Uri(url);
+                    WebsiteUri = new Uri(url);
                     urlIsOk = true;
                 }
                 catch (UriFormatException e)
@@ -73,27 +77,51 @@ namespace VulcanClient2
 
                 if (urlIsOk)
                 {
-                    if (!File.Exists($"{currentDirectory}/drivers/{driverManager.SelectedDriver.Filename}"))
+                    string fileName;
+                    string driverPath = "";
+                    try
                     {
-                        Console.WriteLine("Driver nie istnieje");
-                        await driverManager.SelectedDriver.DownloadDriver();
-                        RunWebDriver(driverManager, uri);
+                        fileName = driverManager.SelectedDriver.Filename;
+                        driverPath = $"{currentDirectory}/drivers/{fileName}";
                     }
-                    else
+                    catch (NullReferenceException e)
                     {
-                        Console.WriteLine("Driver istnieje");
-                        RunWebDriver(driverManager, uri);
+                        Console.WriteLine(e.Message);
+                        await Task.Run(() => notification.Danger.Send(e.Message));
                     }
 
-                    await socket.EmitAsync("website", new
+                    if (driverPath != "")
                     {
-                        notification = new
+                        if (!File.Exists(driverPath))
                         {
-                            message = $"Pomyślnie uruchomiono strone {url}",
-                            pos = "bottom-right",
-                            status = "success"
+                            Console.WriteLine("Driver nie istnieje");
+                            try
+                            {
+                                await driverManager.SelectedDriver.DownloadDriver();
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
+
+                            RunWebDriver(driverManager, WebsiteUri);
                         }
-                    });
+                        else
+                        {
+                            Console.WriteLine("Driver istnieje");
+                            RunWebDriver(driverManager, WebsiteUri);
+                        }
+
+                        await socket.EmitAsync("website", new
+                        {
+                            notification = new
+                            {
+                                message = $"Pomyślnie uruchomiono strone {url}",
+                                pos = "bottom-right",
+                                status = "success"
+                            }
+                        });   
+                    }
                 }
             });
             
