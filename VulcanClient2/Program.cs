@@ -41,7 +41,7 @@ namespace VulcanClient2
         
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Vulcan Client v.1.0.2");
+            Console.WriteLine("Vulcan Client v.1.0.3");
             Console.OutputEncoding = Encoding.UTF8;
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
