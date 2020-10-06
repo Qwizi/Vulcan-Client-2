@@ -80,5 +80,29 @@ namespace VulcanClient2
             if (LocalMachine64 != "") return LocalMachine64;
             return "";
         }
+        
+        public string GetSystemDefaultBrowser()
+        {
+            string browserName = "Internet Explorer";
+            using (RegistryKey userChoiceKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice"))
+            {
+                if (userChoiceKey != null)
+                {
+                    object progIdValue = userChoiceKey.GetValue("Progid");
+                    if (progIdValue != null)
+                    {
+                        if(progIdValue.ToString().ToLower().Contains("chrome"))
+                            browserName = "Google Chrome";
+                        else if(progIdValue.ToString().ToLower().Contains("firefox"))
+                            browserName = "Firefox";
+                        else if (progIdValue.ToString().ToLower().Contains("opera"))
+                            browserName = "Opera";
+                        else if (progIdValue.ToString().ToLower().Contains("msedge"))
+                            browserName = "Microsoft Edge";
+                    }
+                }
+            }
+            return browserName;
+        }
     }
 }

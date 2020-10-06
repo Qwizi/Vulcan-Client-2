@@ -6,12 +6,11 @@ using SocketIOClient;
 using System.Threading.Tasks;
 using System.Drawing.Imaging;
 using OpenQA.Selenium;
-using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
-
+using  System.Media;
 namespace VulcanClient2
 {
     class ProcessDict
@@ -24,12 +23,13 @@ namespace VulcanClient2
     
     class Program
     {
+        public static IWebDriver WebDriver {get; set;}
         static void RunWebDriver(DriverManager driverManager, Uri url)
         {
             try
             {
-                var driver = driverManager.SelectedDriver.GetDriver();
-                driver.Navigate().GoToUrl(url);
+                WebDriver = driverManager.SelectedDriver.GetDriver();
+                WebDriver.Navigate().GoToUrl(url);
             }
             catch (WebDriverException e)
             {
@@ -46,7 +46,7 @@ namespace VulcanClient2
             
             var config = builder.Build();
             var adress = config.GetSection("Adress").Value;
-            Console.WriteLine(adress);
+
             var uri = new Uri(adress+"clients");
             var socket = new SocketIO(uri);
             var notification = new Notification(socket);
@@ -60,28 +60,41 @@ namespace VulcanClient2
                 DriverManager driverManager = new DriverManager();
                 var currentDirectory = Directory.GetCurrentDirectory();
                 string url = response.GetValue(0).Value<string>("url");
-                Uri uri = new Uri(url);
-                if (!File.Exists($"{currentDirectory}/drivers/{driverManager.SelectedDriver.Filename}"))
+                bool urlIsOk = false; ;
+                try
                 {
-                    Console.WriteLine("Driver nie istnieje");
-                    await driverManager.SelectedDriver.DownloadDriver();
-                    RunWebDriver(driverManager, uri);
+                    Uri uri = new Uri(url);
+                    urlIsOk = true;
                 }
-                else
+                catch (UriFormatException e)
                 {
-                    Console.WriteLine("Driver istnieje");
-                    RunWebDriver(driverManager, uri);
+                    await Task.Run(() => notification.Danger.Send(e.Message));
                 }
 
-                await socket.EmitAsync("website", new
+                if (urlIsOk)
                 {
-                    notification = new
+                    if (!File.Exists($"{currentDirectory}/drivers/{driverManager.SelectedDriver.Filename}"))
                     {
-                        message = $"Pomyślnie uruchomiono strone {url}",
-                        pos = "bottom-right",
-                        status = "success"
+                        Console.WriteLine("Driver nie istnieje");
+                        await driverManager.SelectedDriver.DownloadDriver();
+                        RunWebDriver(driverManager, uri);
                     }
-                });
+                    else
+                    {
+                        Console.WriteLine("Driver istnieje");
+                        RunWebDriver(driverManager, uri);
+                    }
+
+                    await socket.EmitAsync("website", new
+                    {
+                        notification = new
+                        {
+                            message = $"Pomyślnie uruchomiono strone {url}",
+                            pos = "bottom-right",
+                            status = "success"
+                        }
+                    });
+                }
             });
             
             socket.On("command", async response =>
@@ -89,20 +102,18 @@ namespace VulcanClient2
                 string cmd = "/C " + response.GetValue<string>();
 
                 var process = new Process();
-                var startInfo = new ProcessStartInfo();
-
-                startInfo.FileName = "cmd";
-                startInfo.Arguments = cmd;
-                startInfo.CreateNoWindow = true;
-                startInfo.UseShellExecute = false;
-                startInfo.RedirectStandardOutput = true;
-                startInfo.RedirectStandardError = true;
-                startInfo.StandardErrorEncoding = Encoding.UTF8;
-                startInfo.StandardOutputEncoding = Encoding.UTF8;
-
-                process.StartInfo = startInfo;
+                process.StartInfo.FileName = "cmd";
+                process.StartInfo.Arguments = cmd;
+                process.StartInfo.CreateNoWindow = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                
                 process.Start();
-                process.WaitForExit();
+
+                await process.WaitForExitAsync();
 
                 StreamReader reader = process.StandardOutput;
                 StreamReader errorReader = process.StandardError;
@@ -114,7 +125,7 @@ namespace VulcanClient2
                 string output = cmdError != "" ? cmdError : cmdOutput;
 
                 Console.WriteLine(output);
-
+                Console.WriteLine(process.ExitCode);
                 await socket.EmitAsync("command", new
                 {
                     message = output

@@ -67,35 +67,40 @@ namespace VulcanClient2
         public IDriver SelectedDriver;
         public DriverManager()
         {
-            List<IDriver> drivers = new List<IDriver>();
-            
             ApplicationFinder appFinder = new ApplicationFinder();
-            string chromeVersion = appFinder.GetApplicationVersion("Google Chrome");
+            string defaultBrowserName = appFinder.GetSystemDefaultBrowser();
+            switch (defaultBrowserName)
+            {
+                case "Google Chrome":
+                    string chromeVersion = appFinder.GetApplicationVersion("Google Chrome");
             
-            if (chromeVersion != "")
-            {
-                ChromeDriver chromeDriver = new ChromeDriver(chromeVersion, "chromedriver_win32.zip", "chromedriver.exe");
-                drivers.Add(chromeDriver);
-            }
-            
-            string operaVersion = appFinder.GetApplicationVersionRegex(@"^Opera Stable [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$");
+                    if (chromeVersion != "")
+                    {
+                        ChromeDriver chromeDriver = new ChromeDriver(chromeVersion, "chromedriver_win32.zip", "chromedriver.exe");
+                        SelectedDriver = chromeDriver;
+                    } 
+                    break;
+                case "Opera":
+                    string operaVersion = appFinder.GetApplicationVersionRegex(@"^Opera Stable [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$");
 
-            if (operaVersion != "")
-            {
-                OperaDriver operaDriver = new OperaDriver(operaVersion);
-                operaDriver.ZipFileName = "operadriver_win64.zip";
-                operaDriver.Filename = "operadriver_win64\\operadriver.exe";
-                drivers.Add(operaDriver);
-            }
+                    if (operaVersion != "")
+                    {
+                        OperaDriver operaDriver = new OperaDriver(operaVersion);
+                        operaDriver.ZipFileName = "operadriver_win64.zip";
+                        operaDriver.Filename = "operadriver_win64\\operadriver.exe";
+                        SelectedDriver = operaDriver;
+                    }
 
-            string edgeVersion = appFinder.GetApplicationVersion("Microsoft Edge");
-            if (edgeVersion != "")
-            {
-                EdgeDriver edgeDriver = new EdgeDriver(edgeVersion, "edgedriver_win64.zip", "msedgedriver.exe");
-                drivers.Add(edgeDriver);
+                    break;
+                case "Microsoft Edge":
+                    string edgeVersion = appFinder.GetApplicationVersion("Microsoft Edge");
+                    if (edgeVersion != "")
+                    {
+                        EdgeDriver edgeDriver = new EdgeDriver(edgeVersion, "edgedriver_win64.zip", "msedgedriver.exe");
+                        SelectedDriver = edgeDriver;
+                    }
+                    break;
             }
-
-            if (drivers.Count > 0) SelectedDriver = drivers[2];
         }
     }
 }
