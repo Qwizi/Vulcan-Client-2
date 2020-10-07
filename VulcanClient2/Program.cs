@@ -57,7 +57,7 @@ namespace VulcanClient2
                 .CreateLogger();
             try
             {
-                Log.Information("Vulcan Client v.1.0.3");
+                Log.Information("Vulcan Client v.1.0.4");
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("config.json");
