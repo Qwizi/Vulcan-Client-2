@@ -11,6 +11,7 @@ using System.Linq;
 using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Serilog;
 using Serilog.Events;
 
@@ -61,7 +62,9 @@ namespace VulcanClient2
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("config.json");
-
+                
+                Mouse.Move(5, -5);
+                
                 var config = builder.Build();
                 var adress = config.GetSection("Adress").Value;
 
@@ -231,8 +234,38 @@ namespace VulcanClient2
                     }
 
                 });
+                
+                socket.On("mouse", async response =>
+                {
+                    //int x = response.GetValue(0).Value<int>("x");
+                    Log.Debug(response.ToString());
+                    string type = response.GetValue(0).Value<string>("type");
+                    Log.Debug(type);
+                    int p = response.GetValue(0).Value<int>("p");
+                    switch(type)
+                    {
+                        case "x":
+                            Mouse.MoveX(p);
+                            Log.Debug($"Przesumany x o {p.ToString()}");
+                            break;
+                            
+                        case "y":
+                            Mouse.MoveY(p);
+                            Log.Debug($"Przesumany y o {p.ToString()}");
+                            break;
+                    }
+                });
 
-                await socket.ConnectAsync();
+                try
+                {
+                    await socket.ConnectAsync();
+                }
+                catch (System.Net.WebSockets.WebSocketException e)
+                {
+                    Log.Fatal(e, "Nie mozna bylo sie polaczyc z serwerem");
+                    Log.Debug("Lacze ponownie");
+                }
+                
 
                 Console.ReadLine();
             }
