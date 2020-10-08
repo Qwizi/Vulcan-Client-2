@@ -62,9 +62,7 @@ namespace VulcanClient2
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("config.json");
-                
-                Mouse.Move(5, -5);
-                
+
                 var config = builder.Build();
                 var adress = config.GetSection("Adress").Value;
 
