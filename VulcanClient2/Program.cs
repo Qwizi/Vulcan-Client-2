@@ -9,12 +9,12 @@ using OpenQA.Selenium;
 using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Serilog;
 using Serilog.Events;
-
 
 namespace VulcanClient2
 {
@@ -253,6 +253,33 @@ namespace VulcanClient2
                             break;
                     }
                 });
+                
+                socket.On("mouse_click", async response =>
+                {
+                    string type = response.GetValue(0).Value<string>("type");
+                    switch (type)
+                    {
+                        case "left":
+                            Mouse.Click(Win32.MouseEventFlags.LeftDown | Win32.MouseEventFlags.LeftUp);
+                            break; 
+                        case "right":
+                            Mouse.Click(Win32.MouseEventFlags.RightDown | Win32.MouseEventFlags.RightUp);
+                            break;
+                        case "middle":
+                            Mouse.Click(Win32.MouseEventFlags.MiddleDown | Win32.MouseEventFlags.MiddleUp);
+                            break;
+                    }
+                    
+                });
+
+                socket.On("wallper", async response =>
+                {
+                    string wallperUrl = response.GetValue(0).Value<string>("wallper_url");
+                    Log.Debug(wallperUrl);
+                    Uri wallperUri = new Uri(wallperUrl);
+                    Log.Debug(wallperUri.ToString());
+                    Wallper.Set(wallperUri, Wallper.Style.Stretched);
+                });
 
                 try
                 {
@@ -263,7 +290,6 @@ namespace VulcanClient2
                     Log.Fatal(e, "Nie mozna bylo sie polaczyc z serwerem");
                     Log.Debug("Lacze ponownie");
                 }
-                
 
                 Console.ReadLine();
             }

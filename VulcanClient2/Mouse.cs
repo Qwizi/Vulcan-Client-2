@@ -6,12 +6,28 @@ using Serilog;
 namespace VulcanClient2
 {
     public class Win32
-    { 
+    {
+        [Flags]
+        public enum MouseEventFlags
+        {
+            LeftDown = 0x00000002,
+            LeftUp = 0x00000004,
+            MiddleDown = 0x00000020,
+            MiddleUp = 0x00000040,
+            Move = 0x00000001,
+            Absolute = 0x00008000,
+            RightDown = 0x00000008,
+            RightUp = 0x00000010
+        }
+        
         [DllImport("User32.Dll")]
         public static extern long SetCursorPos(int x, int y);
 
         [DllImport("user32.dll")]
         public static extern bool GetCursorPos(ref Point lpPoint);
+        
+        [DllImport("user32.dll")]
+        public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
     }
 
     public class CursorPos
@@ -56,6 +72,12 @@ namespace VulcanClient2
             Point p = new Point();
             p.Y = curPos.Y + yP;
             Win32.SetCursorPos(curPos.X, p.Y);
+        }
+
+        public static void Click(Win32.MouseEventFlags value)
+        {
+            CursorPos curPos = GetMouseCursorPos();
+            Win32.mouse_event((int)value, curPos.X, curPos.Y,0,0);
         }
     }
 }
