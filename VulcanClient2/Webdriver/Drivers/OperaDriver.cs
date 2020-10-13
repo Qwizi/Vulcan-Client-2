@@ -9,7 +9,7 @@ using System.IO.Compression;
 using OpenQA.Selenium.Opera;
 
 
-namespace VulcanClient2
+namespace VulcanClient2.Webdriver.Drivers
 {
     public class OperaDriver : IDriver
     {

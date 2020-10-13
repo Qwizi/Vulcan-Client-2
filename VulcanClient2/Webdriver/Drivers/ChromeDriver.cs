@@ -5,7 +5,7 @@ using System.IO;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
 
-namespace VulcanClient2
+namespace VulcanClient2.Webdriver.Drivers
 {
     public class ChromeDriver : Driver
     {

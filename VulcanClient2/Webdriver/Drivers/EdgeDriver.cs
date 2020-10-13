@@ -7,7 +7,7 @@ using System.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Edge;
 
-namespace VulcanClient2
+namespace VulcanClient2.Webdriver.Drivers
 {
     public class EdgeDriver : Driver
     {

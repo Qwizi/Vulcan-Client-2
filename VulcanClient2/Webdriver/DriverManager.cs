@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using OpenQA.Selenium;
 using Serilog;
 
-
-namespace VulcanClient2
+using VulcanClient2.Webdriver.Drivers;
+namespace VulcanClient2.Webdriver
 {
     public interface IDriver
     {
