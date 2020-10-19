@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Edge;
+using Serilog;
 
 namespace VulcanClient2.Webdriver.Drivers
 {
@@ -16,7 +17,7 @@ namespace VulcanClient2.Webdriver.Drivers
         public override async Task DownloadZip()
         {
             string edgeVersion = BrowserVersion.Split(".")[0];
-            Console.WriteLine("Sprawdzamy ostatnia wersje drivera do przegladrki");
+            Log.Debug("Sprawdzamy ostatnia wersje drivera do przegladrki");
             using (HttpClient client = new HttpClient())
             {
                 Uri uri = new Uri($"https://msedgedriver.azureedge.net/LATEST_RELEASE_{edgeVersion}_WINDOWS");
@@ -30,8 +31,8 @@ namespace VulcanClient2.Webdriver.Drivers
                         {
                             string latestDriverVersion = sr.ReadToEnd();
                             latestDriverVersion = String.Concat(latestDriverVersion.Where(c => !Char.IsWhiteSpace(c)));
-                            Console.WriteLine($"Ostatnia wersja drivera {latestDriverVersion}");
-                            Console.WriteLine("Pobieramy drivera");
+                            Log.Debug($"Ostatnia wersja drivera {latestDriverVersion}");
+                            Log.Debug("Pobieramy drivera");
                             Uri driverUri =
                                 new Uri($"https://msedgedriver.azureedge.net/{latestDriverVersion}/{ZipFileName}");
                             using (HttpResponseMessage response =
@@ -57,6 +58,7 @@ namespace VulcanClient2.Webdriver.Drivers
         {
             var options = new EdgeOptions();
             options.UseChromium = true;
+            options.AddArgument("ignore-certificate-errors");
             var service = EdgeDriverService.CreateChromiumService(DriversPath);
             return new OpenQA.Selenium.Edge.EdgeDriver(service, options, TimeSpan.FromMinutes(3));
         }

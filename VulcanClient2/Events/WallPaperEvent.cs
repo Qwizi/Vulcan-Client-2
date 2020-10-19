@@ -12,10 +12,10 @@ namespace VulcanClient2.Events
         public override async Task Run(SocketIOResponse response)
         {
             string wallperUrl = response.GetValue(0).Value<string>("wallper_url");
-            Log.Debug(wallperUrl);
+            Progress.Set("wallper", 50);
             Uri wallperUri = new Uri(wallperUrl);
-            Log.Debug(wallperUri.ToString());
             Wallper.Set(wallperUri, Wallper.Style.Stretched);
+            Progress.Set("wallper", 100);
         }
     }
 }

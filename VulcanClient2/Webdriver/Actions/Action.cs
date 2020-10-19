@@ -1,5 +1,6 @@
 ﻿using System;
 using OpenQA.Selenium;
+using System.Threading.Tasks;
 
 namespace VulcanClient2.Webdriver.Actions
 {
@@ -8,7 +9,7 @@ namespace VulcanClient2.Webdriver.Actions
         public string Tag { get; set; }
         public IWebDriver SeleniumDriver { get; set; }
         public Uri Url {get;}
-        public void DoAction();
+        public Task DoAction();
     }
     
     public abstract class Action : IAction
@@ -23,6 +24,6 @@ namespace VulcanClient2.Webdriver.Actions
             SeleniumDriver = driver;
             Url = url;
         }
-        public abstract void DoAction();
+        public abstract Task DoAction();
     }
 }

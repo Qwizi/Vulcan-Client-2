@@ -57,9 +57,12 @@ namespace VulcanClient2.Webdriver
         {
             Log.Debug("Pobieramy driver");
             await Task.Run(() => DownloadZip());
+            Progress.Set("website", 20);
             Log.Debug("Driver pobrany");
             await Task.Run(() => Unzip());
+            Progress.Set("website", 30);
             await Task.Run(() => Delete());
+            Progress.Set("website", 40);
         }
     }
 

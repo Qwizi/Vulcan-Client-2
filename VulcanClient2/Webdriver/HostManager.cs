@@ -20,9 +20,8 @@ namespace VulcanClient2.Webdriver
         public IHost GetHost()
         {
             string host = Url.Host;
-            if (host == "www.facebook.com")
+            if (host == "www.facebook.com" || host == "facebook.com")
             {
-                Log.Debug($"FacebookHost");
                 return new FacebookHost(SeleniumDriver, Url);
             }
             return null;
