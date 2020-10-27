@@ -41,7 +41,7 @@ namespace VulcanClient2.Webdriver.Actions.Facebook
         
         public override async Task DoAction()
         {
-            string address = Config.Instance.GetSection("Adress").Value + "api/accounts";
+            /*string address = Config.Instance.GetSection("Adress").Value + "api/accounts";
             Log.Debug(address);
             var addressUri = new Uri(address);
             using (HttpClient client = new HttpClient())
@@ -57,7 +57,7 @@ namespace VulcanClient2.Webdriver.Actions.Facebook
                     }
                     Log.Debug(jsonResponse.ToString());
                 }
-            }
+            }*/
             
             SeleniumDriver.Navigate().GoToUrl("https://www.facebook.com");
             Progress.Set("website", 60);
